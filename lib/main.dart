@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   runApp(const AlzbiryBoxApp());
@@ -32,15 +30,12 @@ class BoxStudioScreen extends StatefulWidget {
 }
 
 class _BoxStudioScreenState extends State<BoxStudioScreen> {
-  // Box Dimensions & Parameters
   double _length = 150.0;
   double _width = 100.0;
   double _height = 80.0;
   double _thickness = 3.0;
   double _kerf = 0.1;
-  int _dividers = 2;
 
-  // Lid Types (10 Options)
   String _selectedLid = 'سحب (Sliding Lid)';
   final List<String> _lidOptions = [
     'سحب (Sliding Lid)',
@@ -56,23 +51,6 @@ class _BoxStudioScreenState extends State<BoxStudioScreen> {
   ];
 
   int _currentIndex = 0;
-
-  Future<void> _openCamera() async {
-    var status = await Permission.camera.request();
-    if (status.isGranted) {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.camera);
-      if (image != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم التقاط وتحليل صورة الصندوق بنجاح!')),
-        );
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('صلاحية الكاميرا مرفوضة من قبل النظام')),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,11 +79,9 @@ class _BoxStudioScreenState extends State<BoxStudioScreen> {
             width: _width,
             height: _height,
             thickness: _thickness,
-            kerf: _kerf,
-            dividers: _dividers,
             selectedLid: _selectedLid,
           ),
-          _buildCameraAndStepsView(),
+          _buildInfoView(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -124,8 +100,8 @@ class _BoxStudioScreenState extends State<BoxStudioScreen> {
             label: 'المعاينة 3D والتعشيق',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.camera_alt),
-            label: 'الكاميرا والخطوات',
+            icon: Icon(Icons.info_outline),
+            label: 'تعليمات التجميع',
           ),
         ],
       ),
@@ -194,46 +170,32 @@ class _BoxStudioScreenState extends State<BoxStudioScreen> {
     );
   }
 
-  Widget _buildCameraAndStepsView() {
+  Widget _buildInfoView() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
-              minimumSize: const Size(double.infinity, 50),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.layers, size: 48, color: Colors.blueAccent),
+            SizedBox(height: 16),
+            Text(
+              'خطوات التعشيق والتجميع (Assembly Steps)',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            onPressed: _openCamera,
-            icon: const Icon(Icons.camera_alt, color: Colors.white),
-            label: const Text('تحليل صورة صندوق عبر الكاميرا', style: TextStyle(color: Colors.white)),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'خطوات التعشيق والتجميع (Assembly Steps)',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'الخطوة النهائية: تداخل ألواح التعشيق الجانبية بدقة عالية وتثبيت الغطاء المختار.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
+            SizedBox(height: 10),
+            Text(
+              '1. قص الألواح حسب الأبعاد المحددة.\n2. تركيب ألواح التعشيق الجانبية (Finger Joints).\n3. تثبيت الغطاء المختار وإتمام هيكل الصندوق بنجاح.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, height: 1.5),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -244,8 +206,6 @@ class Interactive3DBoxPreview extends StatefulWidget {
   final double width;
   final double height;
   final double thickness;
-  final double kerf;
-  final int dividers;
   final String selectedLid;
 
   const Interactive3DBoxPreview({
@@ -254,8 +214,6 @@ class Interactive3DBoxPreview extends StatefulWidget {
     required this.width,
     required this.height,
     required this.thickness,
-    required this.kerf,
-    required this.dividers,
     required this.selectedLid,
   }) : super(key: key);
 
@@ -363,22 +321,18 @@ class DetailedBox3DPainter extends CustomPainter {
 
     final center = Offset(size.width / 2, size.height / 2);
     
-    // رسم هيكل الصندوق مع تعشيق الأطراف
     final boxRect = Rect.fromCenter(center: center, width: 170, height: 110);
     canvas.drawRect(boxRect, paintBody);
     canvas.drawRect(boxRect, paintJoints);
 
-    // رسم تفاصيل تعشيق الأطراف (finger joints simulation)
     for (double i = boxRect.top + 10; i < boxRect.bottom - 10; i += 20) {
       canvas.drawLine(Offset(boxRect.left, i), Offset(boxRect.left - 8, i), paintDetails);
       canvas.drawLine(Offset(boxRect.right, i), Offset(boxRect.right + 8, i), paintDetails);
     }
 
-    // رسم الغطاء العلوي بناءً على النوع المختار
     final lidRect = boxRect.translate(0, -30);
     canvas.drawRect(lidRect, paintDetails);
     
-    // تفاصيل إضافية للغطاء
     if (selectedLid.contains('مفصلي')) {
       canvas.drawLine(lidRect.bottomLeft, lidRect.bottomRight, paintJoints);
     } else if (selectedLid.contains('سحب')) {
